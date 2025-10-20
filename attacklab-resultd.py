@@ -21,11 +21,25 @@ class AttackLabResultServer:
     
     def __init__(self):
         self.app = web.Application()
+        self.app.middlewares.append(self.log_middleware)
         self.setup_routes()
+    
+    @web.middleware
+    async def log_middleware(self, request, handler):
+        """Log all requests"""
+        attacklab.log_msg(f"Result server received: {request.method} {request.path_qs}")
+        try:
+            response = await handler(request)
+            attacklab.log_msg(f"Response status: {response.status}")
+            return response
+        except web.HTTPException as ex:
+            attacklab.log_msg(f"HTTP Exception: {ex.status} {ex.reason}")
+            raise
     
     def setup_routes(self):
         """Setup HTTP routes"""
         self.app.router.add_get('/', self.handle_result)
+        self.app.router.add_get('/submit', self.handle_result)
     
     async def handle_result(self, request):
         """Handle result submissions from targets"""

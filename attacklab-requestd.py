@@ -131,6 +131,10 @@ class AttackLabRequestServer:
         
         # Everything is valid - build and deliver target
         attacklab.log_msg(f"Received target request from {client_dname}:{username}:{usermail}")
+
+        if not os.path.exists(attacklab.TARGETDIR):
+            os.makedirs(attacklab.TARGETDIR)
+            attacklab.log_msg(f"Created target directory: {attacklab.TARGETDIR}")
         
         # Get list of existing targets
         targets = []

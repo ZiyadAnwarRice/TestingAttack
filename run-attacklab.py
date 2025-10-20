@@ -1,22 +1,18 @@
 #!/usr/bin/env python3
 """
-run_attacklab.py - Unified launcher for Attack Lab system
-
-This script starts all Attack Lab services in a single process using asyncio.
+run_attacklab.py - Attack Lab unified launcher
 """
 
 import sys
 import os
 import signal
 import asyncio
-import argparse
 import socket
 from aiohttp import web
+import importlib.util
 
 import attacklab
-
-# Import server classes
-import importlib.util
+attacklab.QUIET = False
 
 def load_module(name, path):
     """Dynamically load a module"""
@@ -28,50 +24,42 @@ def load_module(name, path):
 class AttackLabSystem:
     """Main Attack Lab system manager"""
     
-    def __init__(self, quiet=False):
-        if quiet:
-            attacklab.QUIET = True
-        
+    def __init__(self):
         self.request_runner = None
         self.result_runner = None
         self.update_task = None
         self.running = False
+        self.shutdown_event = asyncio.Event()
     
     async def start_request_server(self):
         """Start the request server"""
-        attacklab.log_msg("Starting request server...")
-        
-        # Import the request server module
-        requestd = load_module('requestd', 'attacklab-requestd.py')
-        
-        # Create the app
-        app = await requestd.create_app()
-        
-        self.request_runner = web.AppRunner(app)
-        await self.request_runner.setup()
-        
-        site = web.TCPSite(self.request_runner, '0.0.0.0', attacklab.REQUESTD_PORT)
-        await site.start()
-        
-        attacklab.log_msg(f"Request server running on port {attacklab.REQUESTD_PORT}")
+        try:
+            requestd = load_module('requestd', 'attacklab-requestd.py')
+            app = await requestd.create_app()
+            
+            self.request_runner = web.AppRunner(app)
+            await self.request_runner.setup()
+            
+            site = web.TCPSite(self.request_runner, '0.0.0.0', attacklab.REQUESTD_PORT)
+            await site.start()
+        except Exception as e:
+            print(f"Failed to start request server: {e}")
+            raise
     
     async def start_result_server(self):
         """Start the result server"""
-        attacklab.log_msg("Starting result server...")
-        
-        # Import the result server module
-        resultd = load_module('resultd', 'attacklab-resultd.py')
-        
-        # Create the app
-        app = await resultd.create_app()
-        
-        self.result_runner = web.AppRunner(app)
-        await self.result_runner.setup()
-        
-        site = web.TCPSite(self.result_runner, '0.0.0.0', attacklab.RESULTD_PORT)
-        await site.start()
-        
-        attacklab.log_msg(f"Result server running on port {attacklab.RESULTD_PORT}")
+        try:
+            resultd = load_module('resultd', 'attacklab-resultd.py')
+            app = await resultd.create_app()
+            
+            self.result_runner = web.AppRunner(app)
+            await self.result_runner.setup()
+            
+            site = web.TCPSite(self.result_runner, '0.0.0.0', attacklab.RESULTD_PORT)
+            await site.start()
+        except Exception as e:
+            print(f"Failed to start result server: {e}")
+            raise
     
     async def scoreboard_update_loop(self):
         """Periodically update the scoreboard"""
@@ -85,10 +73,10 @@ class AttackLabSystem:
                 await proc.communicate()
                 
                 if proc.returncode != 0:
-                    attacklab.log_msg(f"Error: Update script ({attacklab.UPDATE}) failed")
+                    print(f"Scoreboard update failed")
             
             except Exception as e:
-                attacklab.log_msg(f"Error in scoreboard update: {e}")
+                print(f"Error updating scoreboard: {e}")
             
             await asyncio.sleep(attacklab.UPDATE_PERIOD)
     
@@ -96,26 +84,30 @@ class AttackLabSystem:
         """Start all services"""
         self.running = True
         
-        server_dname = socket.gethostname()
-        attacklab.log_msg(f"Attack Lab system started on {server_dname}")
-        
-        # Start servers
-        await self.start_request_server()
-        await self.start_result_server()
-        
-        # Start scoreboard updates if validate script exists
-        if os.path.exists(f"./{attacklab.UPDATE}") and os.access(f"./{attacklab.UPDATE}", os.X_OK):
-            self.update_task = asyncio.create_task(self.scoreboard_update_loop())
-            attacklab.log_msg("Scoreboard updates enabled")
-        else:
-            attacklab.log_msg(f"Warning: Update script ({attacklab.UPDATE}) not found. Scoreboard updates disabled.")
-        
-        attacklab.log_msg("All services started successfully")
+        try:
+            await self.start_request_server()
+            await self.start_result_server()
+            
+            if os.path.exists(f"./{attacklab.UPDATE}") and os.access(f"./{attacklab.UPDATE}", os.X_OK):
+                self.update_task = asyncio.create_task(self.scoreboard_update_loop())
+            
+            print("=" * 60)
+            print("Attack Lab Server Running")
+            print(f"Request server:  http://{attacklab.SERVER_NAME}:{attacklab.REQUESTD_PORT}/")
+            print(f"Scoreboard:      http://{attacklab.SERVER_NAME}:{attacklab.REQUESTD_PORT}/scoreboard")
+            print("=" * 60)
+        except Exception as e:
+            print(f"Failed to start: {e}")
+            await self.stop()
+            raise
     
     async def stop(self):
         """Stop all services"""
+        if not self.running:
+            return
+            
         self.running = False
-        attacklab.log_msg("Shutting down Attack Lab system...")
+        print("\nShutting down...")
         
         if self.update_task:
             self.update_task.cancel()
@@ -129,57 +121,38 @@ class AttackLabSystem:
         if self.result_runner:
             await self.result_runner.cleanup()
         
-        attacklab.log_msg("Attack Lab system stopped")
+        print("Shutdown complete")
+        self.shutdown_event.set()
 
-async def main_async(quiet=False):
+async def main_async():
     """Async main function"""
-    system = AttackLabSystem(quiet=quiet)
-    loop = asyncio.get_event_loop()
+    system = AttackLabSystem()
     
-    def signal_handler(signame):
-        attacklab.log_msg(f"Received {signame}. Shutting down...")
+    def signal_handler(signum):
         asyncio.create_task(system.stop())
-        loop.stop()
     
-    # Setup signal handlers
-    for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
         try:
-            loop.add_signal_handler(sig, lambda s=sig: signal_handler(signal.Signals(s).name))
-        except (NotImplementedError, AttributeError):
-            # Windows doesn't support add_signal_handler
+            loop.add_signal_handler(sig, lambda s=sig: signal_handler(s))
+        except:
             pass
     
     try:
         await system.start()
-        
-        # Keep running
-        while system.running:
-            await asyncio.sleep(1)
-    
+        await system.shutdown_event.wait()
     except KeyboardInterrupt:
         await system.stop()
     except Exception as e:
-        attacklab.log_msg(f"Fatal error: {e}")
+        print(f"Fatal error: {e}")
         await system.stop()
-
-def main():
-    """Main entry point"""
-    parser = argparse.ArgumentParser(description='Attack Lab System')
-    parser.add_argument('-q', '--quiet', action='store_true', 
-                       help='Quiet mode - log to file instead of console')
-    args = parser.parse_args()
-    
-    try:
-        asyncio.run(main_async(quiet=args.quiet))
-    except KeyboardInterrupt:
-        print("\nShutdown complete")
+        raise
 
 if __name__ == "__main__":
-    main()
-```
-
----
-
-## FILE 7: requirements.txt
-```
-aiohttp>=3.8.0
+    try:
+        asyncio.run(main_async())
+    except KeyboardInterrupt:
+        print("\nGoodbye!")
+    except Exception as e:
+        print(f"Failed: {e}")
+        sys.exit(1)

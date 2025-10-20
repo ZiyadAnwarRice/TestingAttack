@@ -1,0 +1,470 @@
+#######################################################
+# Attacklab.pm - CS:APP Attack Lab Configuration File
+#
+# Copyright (c) 2016, R. Bryant and D. O'Hallaron.
+#######################################################
+package Attacklab;
+
+use Time::Local;
+
+######
+# Section 1: Required Configuration Variables (INSTRUCTOR)
+#
+# This section defines lab-specific configuration variables that
+# instructors need to set (or at least confirm) each time they offer
+# the course.
+#
+# Note: The options in Section 1 pertain to the onversion of the Attacklab.
+# If you are manually building your own targets, then you can safely ignore
+# them.
+
+# What is the name of the host that the attacklab servers and daemons
+# are running on? Note that you don't need root access to run the
+# attacklab.  Any Linux desktop will do.
+$SERVER_NAME = "jade.clear9.rice.edu";
+
+# What hint should be displayed on the attacklab request form where the
+# students are asked to enter their user name? Different sites might
+# have different notions of what a "user name" is. For example: "Enter
+# your full name", or "Enter your Andrew ID", or "Enter your Unix
+# login ID".
+$USERNAME_HINT = "Enter your Rice NetID";
+
+# How frequently (secs) is the realtime scoreboard updated?
+$UPDATE_PERIOD = 20;
+
+# What ports do the servers listen on? Note: You should never need to
+# change either of these. The only exception would be the unlikely
+# event that there is a port conflict on your machine. Because we're 
+# not running as root, this value must be greater than 1024.
+$REQUESTD_PORT = 18193;  # Request server's port (where browsers point)
+$RESULTD_PORT = 18194;   # Result server's port (where targets send results)
+
+# Bombs will only be created for the following users.
+@USERNAMES = ("alc", "mb156", "go15", "nr34", "tx10", "yn23", "bsl5", "comp222",
+"aa150",
+"aa255",
+"aa258",
+"aa270",
+"aaa38",
+"aac20",
+"ab223",
+"ab235",
+"abs15",
+"ac188",
+"acl18",
+"acs22",
+"acy3",
+"ad163",
+"ad166",
+"adg10",
+"ag188",
+"agn6",
+"agt8",
+"ah108",
+"ahc12",
+"ahv5",
+"aj106",
+"ajd18",
+"akr6",
+"alf15",
+"am307",
+"am315",
+"ams37",
+"amw21",
+"ap163",
+"apb7",
+"ara10",
+"art11",
+"ask20",
+"at105",
+"atb6",
+"bl77",
+"br52",
+"bs82",
+"bw35",
+"bw52",
+"caa12",
+"cah20",
+"cb112",
+"cf57",
+"ck62",
+"ckp2",
+"cn32",
+"csp8",
+"cw161",
+"cz68",
+"daj11",
+"db71",
+"dem14",
+"dhk3",
+"dk66",
+"dq7",
+"dr56",
+"drm15",
+"dvs1",
+"eak5",
+"ed56",
+"eec6",
+"eer7",
+"eg56",
+"eid2",
+"emm20",
+"es100",
+"etb5",
+"ew66",
+"ew67",
+"gec7",
+"gh20",
+"gjn1",
+"gl34",
+"ha30",
+"hd58",
+"hg60",
+"hk63",
+"hs102",
+"hw81",
+"ia22",
+"icw3",
+"is38",
+"ja110",
+"jal30",
+"jc165",
+"jc270",
+"jh215",
+"jj85",
+"jl363",
+"jl370",
+"jl561",
+"jmj11",
+"jn62",
+"js323",
+"jsp12",
+"jt81",
+"jt83",
+"jwl10",
+"kda5",
+"kkp5",
+"kn33",
+"kn36",
+"ldn1",
+"lim6",
+"ll103",
+"ll110",
+"ll151",
+"ls151",
+"ma185",
+"mas52",
+"mdo5",
+"mff1",
+"mg181",
+"mg188",
+"mhl10",
+"mkm10",
+"mlw10",
+"mt123",
+"mv57",
+"mz70",
+"nam12",
+"ngc5",
+"njz1",
+"nl58",
+"nl61",
+"nr58",
+"nt30",
+"ntq1",
+"nwc1",
+"og16",
+"os25",
+"pm58",
+"pml5",
+"pp31",
+"ps155",
+"pzz1",
+"qd8",
+"qz51",
+"ra80",
+"ral18",
+"rb160",
+"rc115",
+"reg12",
+"rek6",
+"rg100",
+"rr82",
+"rs150",
+"rs182",
+"sd122",
+"sd152",
+"sl149",
+"sp180",
+"spv3",
+"ss356",
+"ssv5",
+"st107",
+"sv65",
+"sw122",
+"sx25",
+"tcb10",
+"tde2",
+"th70",
+"tjl5",
+"tm100",
+"tmb15",
+"tmc15",
+"vjb5",
+"vl22",
+"vsg2",
+"vtn6",
+"vw11",
+"vw12",
+"wam4",
+"war2",
+"wb20",
+"wv5",
+"wzh1",
+"xs28",
+"yk72",
+"yl233",
+"yr23",
+"yt52",
+"yx76",
+"yz186",
+"yz236",
+"zas5",
+"zl116",
+"zp12");
+
+#####
+# Section 2: Optional Configuration Variables (LAB DEVELOPER)
+#
+# This section defines any other configuration variables that the lab
+# developer wants to use. Instructors should not need to modify these.
+#
+
+
+######
+# Part 3. Internal configuration constants (LAB DEVELOPER)
+#
+# This section contains internal constants that instructors should not
+# have to modify
+#
+
+# How long to wait (secs) for the request daemon to finish serving a
+# client request before killing itself. It will eventually be
+# restarted by the attacklab.pl process. Addresses a condition under heavy
+# loads where the request daemon sometimes hangs while servicing a client.
+$REQUESTD_TIMEOUT = 30;
+
+# What are the filenames of the scripts
+$REQUESTD = "attacklab-requestd.pl"; # Request server program
+$RESULTD = "attacklab-resultd.pl";   # Result server program
+$REPORTD = "attacklab-reportd.pl";   # Report daemon program
+$UPDATE = "validate.pl";     # Script that updates the web page
+$BUILDTARGET = "buildtarget.pl";     # Script that constructs a target
+
+# What are the names of the logfiles 
+$LOGFILE = "./log.txt";           # Logfile for autoresults from clients
+$STATUSLOG = "./log-status.txt";  # Logfile for server error/status msgs
+
+# What are the names of some key directories
+$TARGETDIR = "./targets";  # Directory for targets generated by request daemon
+$TARGETSRC = "./src/build";      # Directory containing target source files
+
+# Class scoreboard web page and score csv file for update script
+$SCOREFILE = "./scores.csv";
+$SCOREBOARDPAGE = "./attacklab-scoreboard.html";
+
+# If true, redirect log_msg output to logfile instead of stdout.
+$QUIET = 1;                       
+
+# Shades of grey or color that are used in tables
+$DARK_GREY = '#b8d8ff';
+$LIGHT_GREY = '#dfefff';
+
+#####
+# Widths of various table and form fields
+#
+$WIDTH_USERID = 100;
+$WIDTH_EMAIL = 225;
+$WIDTH_INTEGER = 50;
+$WIDTH_SHORTDATE = 120;
+$WIDTH_TEXTTABLE = 600;
+$CELLPADDING = 1;
+$CELLSPACING = 1;
+
+# Some miscellaneous constants
+$MAXHDRLEN = 16384;  # Max bytes in an HTTP request header
+$MAX_TEXTBOX = 32;   # Max bytes in a form text box
+
+#####
+# Part 4. Helper functions used by all of the server programs
+#
+require Exporter;
+@ISA = qw(Exporter);
+@EXPORT = qw(
+             log_msg
+             log_die
+	     date2time
+	     short_date
+	     );
+
+#
+# log_msg - Append a message to the status log
+#
+sub log_msg {
+    my $date = scalar localtime();
+
+    if ($QUIET) {
+	if (open(STATUSLOG, ">>$STATUSLOG")) {
+	    print STATUSLOG "$date:$0:@_\n";
+	    close(STATUSLOG);
+	}
+    }
+    else {
+	print("@_\n");
+    }
+}
+
+#
+# log_die - Append a message to the status log and then die
+#
+sub log_die {
+    log_msg(@_);
+    exit(1);
+}
+
+#
+# date2time - Convert a date string to seconds since the epoch
+#
+# We need this function because it is not provided by any of the standard
+# Perl modules, and we made a firm design decision not to rely on any 
+# non-standard modules from places like CPAN.
+#
+# Examples of valid date strings:
+#
+# Aug 4 11:01:05 2003 
+# August 4 11:01:05 2003 
+# aug 4 11:01:05 2003 
+# august 4 11:01:05 2003 
+#
+# Returns -1 on error, number of seconds if OK
+#
+sub date2time   {
+    my $orig_date = shift;
+    my $date;
+    my $mon;
+    my $mon_str;
+    my $mday;
+    my $hours;
+    my $min;
+    my $sec;
+    my $time_str;
+    my $year_str;
+    my $year;
+    my $rest;
+    my $str;
+    my $day_str;
+
+    my %days = (sun => 0,
+		mon => 1,
+		tue => 2,
+		wed => 3,
+		thu => 4,
+		fri => 5,
+		sat => 6);
+
+    my %months = (jan => 0, 
+		  feb => 1, 
+		  mar => 2, 
+		  apr => 3,
+		  may => 4, 
+		  jun => 5, 
+		  jul => 6, 
+		  aug => 7,
+		  sep => 8, 
+		  oct => 9,
+		  nov => 10,
+		  dec => 11);
+
+    # Convert everything in the date string to lowercase and 
+    # compress white spaces
+    $date = lc($orig_date);
+    $date =~ s/\s+/ /g;
+
+    # Is the first field a day of the week or a month?
+    ($str, $rest) = split(/ /, $date, 2);
+    ($str) = $str =~ /^(...)/; # Get first three letters
+
+    if (exists($days{$str})) {
+	($day_str, $mon_str, $mday, $time_str, $year_str)  = split(/ /, $date);
+    }
+    else {
+	($mon_str, $mday, $time_str, $year_str)= split(/ /, $date);
+    }
+
+    # Extract month number (use first three letters of name as hash index)
+    ($mon_str) = $mon_str =~ /^(...)/;
+    if (!exists($months{$mon_str})) {
+	log_msg(3, "Error: Invalid month field ($mon_str) in date string $orig_date");
+	return -1;
+    }
+    $mon = $months{$mon_str};
+
+    # Extract day of the month
+    if ($mday < 0 or $mday > 31) {
+	log_msg(3, "Error: Invalid day of month field in date string $orig_date");
+	return -1;
+    }
+
+    # Extract time fields 
+    ($hours, $min, $sec) = split(/:/, $time_str);
+    if ($hours < 0 or $hours > 23) {
+	log_msg(3, "Error: Invalid hours field in date string $orig_date");
+	return -1;
+    } 
+    if ($min < 0 or $min > 59) {
+	log_msg(3, "Error: Invalid minutes field in date string $orig_date");
+	return -1;
+    }
+    if ($sec < 0 or $sec > 59) {
+	log_msg(3, "Error: Invalid seconds field in date string $orig_date");
+	return -1;
+    }
+
+    # Extract year field
+    $year = $year_str - 1900;
+    if ($year < 0) {
+	log_msg(0, "Error: Invalid year field in date string $orig_date");
+	return -1;
+    }
+
+    return timelocal($sec, $min, $hours, $mday, $mon, $year);
+}
+
+#
+# short_date - returns an abbreviated string version of an epoch time
+#
+sub short_date {
+    my $time = shift;
+
+    my $day;
+    my $month;
+    my $dom;
+    my $timestr;
+    my $year;
+    my $hour;
+    my $min;
+    my $sec;
+    my $date = localtime($time);
+
+    ($day, $month, $dom, $timestr, $year) = 
+	split(" ", $date, 5);
+    ($hour, $min, $sec) = split(/:/, $timestr);
+    return "$day $month $dom $hour:$min";
+}
+
+#
+# Always end a module with a 1 so that it returns TRUE
+#
+1;
+
